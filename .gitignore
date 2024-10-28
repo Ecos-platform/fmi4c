@@ -57,3 +57,7 @@ CMakeLists.txt.user
 # Backup Files
 *~
 \#*
+
+# CLion
+.idea
+cmake-build-*
