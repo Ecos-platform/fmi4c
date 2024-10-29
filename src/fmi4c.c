@@ -4431,6 +4431,12 @@ const char* fmi1_getModelDescription(fmiHandle *fmu)
     return fmu->fmi1.description;
 }
 
+const char* fmi1_getModelIdentifier(fmiHandle* fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.modelIdentifier;
+}
+
 const char* fmi1_getGenerationTool(fmiHandle *fmu)
 {
     TRACEFUNC
