@@ -87,6 +87,7 @@ FMI4C_DLLAPI fmi1DataType fmi1_getVariableDataType(fmi1VariableHandle* var);
 FMI4C_DLLAPI const char* fmi1_getTypesPlatform(fmiHandle* fmu);
 FMI4C_DLLAPI const char* fmi1_getVersion(fmiHandle* fmu);
 FMI4C_DLLAPI fmi1Status fmi1_setDebugLogging(fmiHandle* fmu, fmi1Boolean);
+FMI4C_DLLAPI const char* fmi1_getGuid(fmiHandle *fmu);
 
 FMI4C_DLLAPI fmi1Status fmi1_getReal(fmiHandle* fmu, const fmi1ValueReference valueReferences[], size_t nValueReferences, fmi1Real values[]);
 FMI4C_DLLAPI fmi1Status fmi1_getInteger(fmiHandle* fmu, const fmi1ValueReference valueReferences[], size_t nValueReferences, fmi1Integer values[]);

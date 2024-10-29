@@ -4527,6 +4527,12 @@ fmi1Status fmi1_setDebugLogging(fmiHandle *fmu, fmi1Boolean loggingOn)
     return fmu->fmi1.setDebugLogging(fmu->fmi1.component, loggingOn);
 }
 
+const char* fmi1_getGuid(fmiHandle* fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.guid;
+}
+
 fmi1Status fmi1_getReal(fmiHandle *fmu, const fmi1ValueReference valueReferences[], size_t nValueReferences, fmi1Real values[])
 {
     TRACEFUNC
