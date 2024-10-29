@@ -4407,6 +4407,48 @@ const char *fmi1_getVariableName(fmi1VariableHandle *var)
     return var->name;
 }
 
+const char* fmi1_getFmiVersion(fmiHandle* fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.version;
+}
+
+const char* fmi1_getAuthor(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.author;
+}
+
+const char* fmi1_getModelName(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.modelName;
+}
+
+const char* fmi1_getModelDescription(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.description;
+}
+
+const char* fmi1_getGenerationTool(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.generationTool;
+}
+
+const char* fmi1_getGenerationDateAndTime(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.generationDateAndTime;
+}
+
+const char* fmi1_getVariableNamingConvention(fmiHandle *fmu)
+{
+    TRACEFUNC
+    return fmu->fmi1.variableNamingConvention;
+}
+
 const char *fmi1_getVariableDescription(fmi1VariableHandle *var)
 {
     TRACEFUNC
