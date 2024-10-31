@@ -72,6 +72,16 @@ const char* fmi4c_getErrorMessages()
     return fmi4cErrorMessage;
 }
 
+const char* fmi4c_getUnzippedLocation(fmiHandle* fmu)
+{
+    return fmu->unzippedLocation;
+}
+
+const char* fmi4c_getResourceLocation(fmiHandle* fmu)
+{
+    return fmu->resourcesLocation;
+}
+
 
 //! @brief Parses modelDescription.xml for FMI 1
 //! @param fmu FMU handle
