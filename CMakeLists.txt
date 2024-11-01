@@ -33,9 +33,6 @@ set(SRCFILES
     include/fmi4c_functions_fmi3.h
     3rdparty/ezxml/ezxml.c
     3rdparty/ezxml/ezxml.h)
-if (MSVC)
-    SET(SRCFILES ${SRCFILES} 3rdparty/dirent/dirent.h)
-endif()
 
 if (FMI4C_BUILD_SHARED)
     add_library(${target_name} SHARED ${SRCFILES})
