@@ -4,7 +4,6 @@
 #include "fmi4c_placeholders.h"
 #include "fmi4c_utils.h"
 
-#include "minizip/miniunz.h"
 #include "ezxml/ezxml.h"
 
 #include <sys/stat.h>
@@ -4150,6 +4149,19 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
         strncat(unzippLocation, tempFileName, FILENAME_MAX-strlen(unzippLocation)-1);
     }
     _mkdir(unzippLocation);
+
+    // Estimate the required length for the command string
+    const int commandLength = strlen("tar -xf ") + strlen(fmufile) + strlen(" -C ") + strlen(unzippLocation) + 1;
+
+    // Allocate memory for the command
+    char *command = malloc(commandLength * sizeof(char));
+    if (command == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
+    }
+    // Build the command string
+    snprintf(command, commandLength, "tar -xf %s -C %s", fmufile, unzippLocation);
+
 #else
     const char* env_tmpdir = getenv("TMPDIR");
     const char* env_tmp = getenv("TMP");
@@ -4177,25 +4189,27 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
     strncat(unzippLocation, instanceName, FILENAME_MAX-strlen(unzippLocation)-1);
     strncat(unzippLocation, "_XXXXXX", FILENAME_MAX-strlen(unzippLocation)-1); // XXXXXX is for unique name by mkdtemp
     mkdtemp(unzippLocation);
+
+    // Estimate the required length for the command string
+    const int commandLength = strlen("unzip -o ") + strlen(fmufile) + strlen(" -d ") + strlen(unzippLocation) + 1;
+
+    // Allocate memory for the command
+    char *command = malloc(commandLength * sizeof(char));
+    if (command == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
+    }
+    // Build the command string
+    snprintf(command, commandLength, "unzip -o %s -d %s", fmufile, unzippLocation);
+
 #endif
 
-    int argc = 6;
-    const char *argv[6];
-    argv[0] = "miniunz";
-    argv[1] = "-x";
-    argv[2] = "-o";
-    argv[3] = fmufile;
-    argv[4] = "-d";
-    argv[5] = unzippLocation;
-
-    int status = miniunz(argc, (char**)argv);
+    const int status = system(command);
+    free(command);
     if (status != 0) {
         printf("Failed to unzip FMU: status = %i, to location %s\n",status, unzippLocation);
         return NULL;
     }
-    // miniunzip will change dir to unzipLocation, lets change back
-    chdir(cwd);
-
 
     fmiHandle *fmu = calloc(1, sizeof(fmiHandle)); // Using calloc to ensure all member pointers (and data) are initialized to NULL (0)
     fmu->version = fmiVersionUnknown;
