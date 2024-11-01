@@ -1,7 +1,9 @@
 #include "fmi4c_utils.h"
+#include "fmi4c_common.h"
 
 #include <stdlib.h>
 #include <string.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #include <direct.h>
@@ -9,6 +11,7 @@
 #else
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #define PATH_SEPARATOR '/'
 #endif
 
