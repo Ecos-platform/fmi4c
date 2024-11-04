@@ -71,6 +71,12 @@ const char* fmi4c_getErrorMessages()
     return fmi4cErrorMessage;
 }
 
+void freeDuplicatedConstChar(const char* ptr) {
+  if(ptr == NULL) {
+      free((void*)ptr);
+  }
+}
+
 const char* fmi4c_getUnzippedLocation(fmiHandle* fmu)
 {
     return fmu->unzippedLocation;
@@ -203,7 +209,7 @@ bool parseModelDescriptionFmi1(fmiHandle *fmu)
                 if(!strcmp(unitSubElement->name, "DisplayUnitDefinition")) {
                     baseUnit.displayUnits[j].gain = 1;
                     baseUnit.displayUnits[j].offset = 0;
-                    parseStringAttributeEzXml(unitSubElement,  "name",      &baseUnit.displayUnits[j].displayUnit);
+                    parseStringAttributeEzXml(unitSubElement,  "displayUnit",      &baseUnit.displayUnits[j].displayUnit);
                     parseFloat64AttributeEzXml(unitSubElement, "factor",    &baseUnit.displayUnits[j].gain);
                     parseFloat64AttributeEzXml(unitSubElement, "offset",    &baseUnit.displayUnits[j].offset);
                 }
@@ -245,7 +251,7 @@ bool parseModelDescriptionFmi1(fmiHandle *fmu)
             parseStringAttributeEzXml(varElement, "description", &var.description);
 
             var.causality = fmi1CausalityInternal;
-            const char* causality;
+            const char* causality = NULL;
             if(parseStringAttributeEzXml(varElement, "causality", &causality)) {
                 if(!strcmp(causality, "input")) {
                     var.causality = fmi1CausalityInput;
@@ -261,12 +267,14 @@ bool parseModelDescriptionFmi1(fmiHandle *fmu)
                 }
                 else {
                     printf("Unknown causality: %s\n", causality);
+                    freeDuplicatedConstChar(causality);
                     return false;
                 }
+                freeDuplicatedConstChar(causality);
             }
 
             var.variability = fmi1VariabilityContinuous;
-            const char* variability;
+            const char* variability = NULL;
             if(parseStringAttributeEzXml(varElement, "variability", &variability)) {
                 if(!strcmp(variability, "parameter")) {
                     var.variability = fmi1VariabilityParameter;
@@ -282,12 +290,14 @@ bool parseModelDescriptionFmi1(fmiHandle *fmu)
                 }
                 else {
                     printf("Unknown variability: %s\n", variability);
+                    freeDuplicatedConstChar(variability);
                     return false;
                 }
+                freeDuplicatedConstChar(variability);
             }
 
             var.alias = fmi1AliasNoAlias;
-            const char* alias;
+            const char* alias = NULL;
             if(parseStringAttributeEzXml(varElement, "alias", &alias)) {
                 if(!strcmp(alias, "alias")) {
                     var.alias = fmi1AliasAlias;
@@ -298,6 +308,12 @@ bool parseModelDescriptionFmi1(fmiHandle *fmu)
                 else if(!strcmp(alias, "noAlias")) {
                     var.alias = fmi1AliasNoAlias;
                 }
+                else {
+                    printf("Unknown alias: %s\n", alias);
+                    freeDuplicatedConstChar(alias);
+                    return false;
+                }
+                freeDuplicatedConstChar(alias);
             }
 
             var.hasStartValue = false;
@@ -587,7 +603,7 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
             parseBooleanAttributeEzXml(varElement, "canHandleMultipleSetPerTimeInstant", &var.canHandleMultipleSetPerTimeInstant);
 
             var.causality = fmi2CausalityLocal;
-            const char* causality;
+            const char* causality = NULL;
             if(parseStringAttributeEzXml(varElement, "causality", &causality)) {
                 if(!strcmp(causality, "input")) {
                     var.causality = fmi2CausalityInput;
@@ -609,12 +625,14 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                 }
                 else {
                     printf("Unknown causality: %s\n", causality);
+                    freeDuplicatedConstChar(causality);
                     return false;
                 }
+                freeDuplicatedConstChar(causality);
             }
 
             var.variability = fmi2VariabilityContinuous;
-            const char* variability;
+            const char* variability = NULL;
             if(parseStringAttributeEzXml(varElement, "variability", &variability)) {
                 if(variability && !strcmp(variability, "fixed")) {
                     var.variability = fmi2VariabilityFixed;
@@ -633,12 +651,14 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                 }
                 else if(variability) {
                     printf("Unknown variability: %s\n", variability);
+                    freeDuplicatedConstChar(variability);
                     return false;
                 }
+                freeDuplicatedConstChar(variability);
             }
 
             var.initial = fmi2InitialUnknown;
-            const char* initial;
+            const char* initial = NULL;
             if(parseStringAttributeEzXml(varElement, "initial", &initial)) {
                 if(initial && !strcmp(initial, "approx")) {
                     var.initial = fmi2InitialApprox;
@@ -650,9 +670,15 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                     var.initial = fmi2InitialExact;
                 }
                 else {
-                    // calculate the initial value according to fmi specification 2.2 table page 51
-                    var.initial = initialDefaultTable[mapVariabilityIndex[var.variability]][mapCausalityIndex[var.causality]];
+                    printf("Unknown intial: %s\n", initial);
+                    freeDuplicatedConstChar(initial);
+                    return false;
                 }
+                freeDuplicatedConstChar(variability);
+            }
+            else {
+                // calculate the initial value according to fmi specification 2.2 table page 51
+                var.initial = initialDefaultTable[mapVariabilityIndex[var.variability]][mapCausalityIndex[var.causality]];
             }
 
             var.hasStartValue = false;
@@ -1278,7 +1304,7 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                 parseStringAttributeEzXml(typeElement, "description", &fmu->fmi3.clockTypes[iClock].description);
                 parseBooleanAttributeEzXml(typeElement, "canBeDeactivated", &fmu->fmi3.clockTypes[iClock].canBeDeactivated);
                 parseUInt32AttributeEzXml(typeElement, "priority", &fmu->fmi3.clockTypes[iClock].priority);
-                const char* intervalVariability;
+                const char* intervalVariability = NULL;
                 parseStringAttributeEzXml(typeElement, "intervalVariability", &intervalVariability);
                 if(intervalVariability && !strcmp(intervalVariability, "calculated")) {
                     fmu->fmi3.clockTypes[iClock].intervalVariability = fmi3IntervalVariabilityCalculated;
@@ -1303,8 +1329,10 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                 }
                 else if(intervalVariability) {
                     printf("Unknown interval variability: %s\n", intervalVariability);
+                    freeDuplicatedConstChar(intervalVariability);
                     return false;
                 }
+                freeDuplicatedConstChar(intervalVariability);
                 parseFloat32AttributeEzXml(typeElement, "intervalDecimal", &fmu->fmi3.clockTypes[iClock].intervalDecimal);
                 parseFloat32AttributeEzXml(typeElement, "shiftDecimal", &fmu->fmi3.clockTypes[iClock].shiftDecimal);
                 parseBooleanAttributeEzXml(typeElement, "supportsFraction", &fmu->fmi3.clockTypes[iClock].supportsFraction);
@@ -1365,38 +1393,41 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
             parseBooleanAttributeEzXml(varElement, "intermediateUpdate", &var.intermediateUpdate);
             parseUInt32AttributeEzXml(varElement, "previous", &var.previous);
             parseStringAttributeEzXml(varElement, "declaredType", &var.declaredType);
-            const char* clocks = "";
-            parseStringAttributeEzXml(varElement, "clocks", &clocks);
-            char* nonConstClocks = _strdup(clocks);
 
-            //Count number of clocks
             var.numberOfClocks = 0;
-            if(nonConstClocks[0]) {
-                var.numberOfClocks = 1;
-            }
-            for(int i=0; nonConstClocks[i]; ++i) {
-                if(nonConstClocks[i] == ' ') {
-                    ++var.numberOfClocks;
+            const char* clocks = NULL;
+            if (parseStringAttributeEzXml(varElement, "clocks", &clocks)) {
+                // Count number of clocks
+                if(clocks[0]) {
+                    var.numberOfClocks = 1;
                 }
-            }
-
-            //Allocate memory for clocks
-            if(var.numberOfClocks > 0) {
-                var.clocks = malloc(var.numberOfClocks*sizeof(int));
-            }
-
-            //Read clocks
-            const char* delim = " ";
-            for(int i=0; i<var.numberOfClocks; ++i) {
-                if(i == 0) {
-                    var.clocks[i] = atoi(strtok(nonConstClocks, delim));
+                for(int i=0; clocks[i]; ++i) {
+                    if(clocks[i] == ' ') {
+                        ++var.numberOfClocks;
+                    }
                 }
-                else {
-                    var.clocks[i] = atoi(strtok(NULL, delim));
-                }
-            }
 
-            free(nonConstClocks);
+
+                //Allocate memory for clocks
+                if(var.numberOfClocks > 0) {
+                    var.clocks = malloc(var.numberOfClocks*sizeof(int));
+                }
+
+                //Read clocks
+                char* mutable_clocks = _strdup(clocks);
+                const char* delim = " ";
+                for(int i=0; i<var.numberOfClocks; ++i) {
+                    if(i == 0) {
+                        var.clocks[i] = atoi(strtok(mutable_clocks, delim));
+                    }
+                    else {
+                        var.clocks[i] = atoi(strtok(NULL, delim));
+                    }
+                }
+
+                freeDuplicatedConstChar(mutable_clocks);
+                freeDuplicatedConstChar(clocks);
+            }
 
             var.hasStartValue = false;
 
@@ -1509,7 +1540,7 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
             }
 
             var.causality = fmi3CausalityLocal;
-            const char* causality;
+            const char* causality = NULL;
             if(parseStringAttributeEzXml(varElement, "causality", &causality)) {
                 if(!strcmp(causality, "parameter")) {
                     var.causality = fmi3CausalityParameter;
@@ -1537,12 +1568,14 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                     if(var.numberOfClocks > 0) {
                         free(var.clocks);
                     }
+                    freeDuplicatedConstChar(causality);
                     return false;
                 }
+                freeDuplicatedConstChar(causality);
             }
 
 
-            const char* variability;
+            const char* variability = NULL;
             if(var.datatype == fmi3DataTypeFloat64 || var.datatype == fmi3DataTypeFloat32) {
                 var.variability = fmi3VariabilityContinuous;
             }
@@ -1598,8 +1631,10 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                 }
                 else if(initial) {
                     printf("Unknown initial: %s\n", initial);
+                    freeDuplicatedConstChar(initial);
                     return false;
                 }
+                freeDuplicatedConstChar(initial);
             }
 
             //Parse arguments common to float, int and enumeration
@@ -1646,7 +1681,7 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                 parseInt64AttributeEzXml(varElement, "resolution", &var.resolution);
                 parseInt64AttributeEzXml(varElement, "intervalCounter", &var.intervalCounter);
                 parseInt64AttributeEzXml(varElement, "shiftCounter", &var.shiftCounter);
-                const char* intervalVariability;
+                const char* intervalVariability = NULL;
                 parseStringAttributeEzXml(varElement, "intervalVariability", &intervalVariability);
                 if(intervalVariability && !strcmp(intervalVariability, "calculated")) {
                     var.intervalVariability = fmi3IntervalVariabilityCalculated;
@@ -1671,8 +1706,10 @@ bool parseModelDescriptionFmi3(fmiHandle *fmu)
                 }
                 else if(intervalVariability) {
                     printf("Unknown interval variability: %s\n", intervalVariability);
+                    freeDuplicatedConstChar(intervalVariability);
                     return false;
                 }
+                freeDuplicatedConstChar(intervalVariability);
             }
 
             if(fmu->fmi3.numberOfVariables >= fmu->fmi3.variablesSize) {
@@ -4254,9 +4291,11 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
         }
         else {
             printf("Unsupported FMI version: %s\n", version);
+            freeDuplicatedConstChar(version);
             free(fmu);
             return NULL;
         }
+        freeDuplicatedConstChar(version);
     }
     else {
         printf("FMI version not specified.");
@@ -4486,10 +4525,6 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
     return fmu;
 }
 
-
-void freeDuplicatedConstChar(const char* ptr) {
-  free((void*)ptr);
-}
 
 //! @brief Free FMU dll
 //! @param fmu FMU handle
