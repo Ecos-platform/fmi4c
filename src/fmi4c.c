@@ -4198,7 +4198,7 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
     _mkdir(unzippLocation);
 
     // Estimate the required length for the command string
-    const int commandLength = strlen("tar -xf ") + strlen(fmufile) + strlen(" -C ") + strlen(unzippLocation) + 1;
+    const int commandLength = strlen("tar -xf \"") + strlen(fmufile) + strlen("\" -C \"") + strlen(unzippLocation) + 2;
 
     // Allocate memory for the command
     char *command = malloc(commandLength * sizeof(char));
@@ -4207,7 +4207,7 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
         return NULL;
     }
     // Build the command string
-    snprintf(command, commandLength, "tar -xf %s -C %s", fmufile, unzippLocation);
+    snprintf(command, commandLength, "tar -xf \"%s\" -C \"%s\"", fmufile, unzippLocation);
 
 #else
     const char* env_tmpdir = getenv("TMPDIR");
@@ -4238,7 +4238,7 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
     mkdtemp(unzippLocation);
 
     // Estimate the required length for the command string
-    const int commandLength = strlen("unzip -o ") + strlen(fmufile) + strlen(" -d ") + strlen(unzippLocation) + 1;
+    const int commandLength = strlen("unzip -o \"") + strlen(fmufile) + strlen("\" -d \"") + strlen(unzippLocation) + 2;
 
     // Allocate memory for the command
     char *command = malloc(commandLength * sizeof(char));
@@ -4247,7 +4247,7 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
         return NULL;
     }
     // Build the command string
-    snprintf(command, commandLength, "unzip -o %s -d %s", fmufile, unzippLocation);
+    snprintf(command, commandLength, "unzip -o \"%s\" -d \"%s\"", fmufile, unzippLocation);
 
 #endif
 
