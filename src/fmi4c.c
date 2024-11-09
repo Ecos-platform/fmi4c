@@ -4180,6 +4180,7 @@ fmiHandle *fmi4c_loadFmu(const char *fmufile, const char* instanceName)
     // Create a unique tempfile and use its name for the unique directory name
     char tempFileName[MAX_PATH];
     UINT rc = GetTempFileNameA(unzippLocation, "", 0, tempFileName);
+    DeleteFileA(tempFileName);
     if (rc == 0) {
         printf("Cannot generate temp name for unzip location\n");
         return NULL;
