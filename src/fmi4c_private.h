@@ -66,6 +66,11 @@ typedef struct {
     const char *quantity;
     const char *unit;
     const char *displayUnit;
+    bool relativeQuantity;
+    fmi2Real min;
+    fmi2Real max;
+    fmi2Real nominal;
+    bool unbounded;
     bool hasStartValue;
     fmi2Real startReal;
     fmi2Integer startInteger;
@@ -784,6 +789,9 @@ typedef struct {
     fmi1_data_t fmi1;
     fmi2Data_t fmi2;
     fmi3Data_t fmi3;
+
+    void** allocatedPointers;
+    int numAllocatedPointers;
 } fmiHandle;
 
 bool parseModelDescriptionFmi1(fmiHandle *fmuFile);

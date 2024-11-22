@@ -4,16 +4,57 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #include <direct.h>
-#define PATH_SEPARATOR '\\'
 #else
+// For MinGW or GCC
 #include <dirent.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#define PATH_SEPARATOR '/'
 #endif
+
+#ifdef WIN32
+#define FILE_PATH_SEPARATOR '\\'
+#else
+#include <unistd.h>
+#define FILE_PATH_SEPARATOR '/'
+#endif
+
+
+void rememberPointer(fmiHandle *fmu, void* ptr)
+{
+    fmu->numAllocatedPointers++;
+    fmu->allocatedPointers = realloc(fmu->allocatedPointers, fmu->numAllocatedPointers * sizeof(void*));
+    fmu->allocatedPointers[fmu->numAllocatedPointers-1] = ptr;
+}
+
+void* mallocAndRememberPointer(fmiHandle *fmu, size_t size)
+{
+    void* ptr = malloc(size);
+    rememberPointer(fmu, ptr);
+    return ptr;
+}
+
+void *reallocAndRememberPointer(fmiHandle *fmu, void *org, size_t size)
+{
+    int i=0;
+    while (i < fmu->numAllocatedPointers && org != fmu->allocatedPointers[i])
+        ++i;
+    void* ptr = realloc(org, size);
+    if (i < fmu->numAllocatedPointers)
+        fmu->allocatedPointers[i] = ptr;
+    else
+       rememberPointer(fmu, ptr);
+    return ptr;
+}
+
+char* duplicateAndRememberString(fmiHandle *fmu, const char* str)
+{
+    char* ret = _strdup(str);
+    rememberPointer(fmu, (void*)ret);
+    return ret;
+}
+
 
 //! @brief Concatenates model name and function name into "modelName_functionName" (for FMI 1)
 //! @param modelName FMU model name
@@ -36,6 +77,15 @@ const char* getFunctionName(const char* modelName, const char* functionName, cha
 //! @param attributeName Attribute name
 //! @param target Pointer to target variable
 //! @returns True if attribute was found, else false
+bool parseStringAttributeEzXmlAndRememberPointer(ezxml_t element, const char *attributeName, const char **target, fmiHandle *fmu)
+{
+    if(ezxml_attr(element, attributeName)) {
+        (*target) = duplicateAndRememberString(fmu, ezxml_attr(element, attributeName));
+        return true;
+    }
+    return false;
+}
+
 bool parseStringAttributeEzXml(ezxml_t element, const char *attributeName, const char **target)
 {
     if(ezxml_attr(element, attributeName)) {
@@ -303,21 +353,21 @@ bool parseModelStructureElement(fmi3ModelStructureElement *output, ezxml_t *elem
 //! @param expectedDirNamePrefix Optional directory name prefix to avoid removing unintended root dir. Set to Null to ignore.
 //! @returns 0 if removed OK else a system error code or -1
 int removeDirectoryRecursively(const char* rootDirPath, const char *expectedDirNamePrefix) {
-    // Check if expectedDirNamePrefix is specified and matches the directory name
+    // If expectedDirNamePrefix is set, ensure that the name of the directory being removed starts with this prefix
+    // This is just an optional sanity check to prevent unexpected removal of the wrong directory
     if (expectedDirNamePrefix != NULL) {
-        const char *dirName = strrchr(rootDirPath, PATH_SEPARATOR);
-        dirName = (dirName) ? dirName + 1 : rootDirPath; // Get the directory name part
-
-        if (strncmp(dirName, expectedDirNamePrefix, strlen(expectedDirNamePrefix)) != 0) {
-            fprintf(stderr, "Directory name prefix '%s' mismatch, refusing to remove directory '%s'\n",
-                    expectedDirNamePrefix, rootDirPath);
-            return 1;  // Prefix mismatch
+        const char *lastDirName = strrchr(rootDirPath, FILE_PATH_SEPARATOR);
+        // Advance to first character after separator (or point to first character if no separator was found)
+        lastDirName = (lastDirName) ? lastDirName + 1 : rootDirPath;
+        if (strncmp(expectedDirNamePrefix, lastDirName, strlen(expectedDirNamePrefix)) != 0) {
+            printf("Directory name prefix '%s' mismatch, refusing to remove directory '%s'\n", expectedDirNamePrefix, rootDirPath);
+            return 1;
         }
     }
 
     int status = 0;
 
-#ifdef _WIN32
+#ifdef _MSC_VER
     WIN32_FIND_DATA findFileData;
     char searchPath[MAX_PATH];
     snprintf(searchPath, sizeof(searchPath), "%s\\*", rootDirPath);
@@ -330,6 +380,7 @@ int removeDirectoryRecursively(const char* rootDirPath, const char *expectedDirN
 
     do {
         const char *name = findFileData.cFileName;
+        // Avoid recursing upwards in the directory structure
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
             continue;
         }
@@ -365,19 +416,40 @@ int removeDirectoryRecursively(const char* rootDirPath, const char *expectedDirN
     DIR *dir = opendir(rootDirPath);
     if (!dir) {
         perror("Could not open directory");
+        fprintf(stderr, "Could not access '%s' for removal\n", rootDirPath);
         return -1;
     }
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        // Avoid recursing upwards in the directory structure
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
+        }
 
+        // Determine full path to file or directory for current entry
         char fullPath[4096];
         snprintf(fullPath, sizeof(fullPath), "%s/%s", rootDirPath, entry->d_name);
 
+        // Figure out if entry represents a directory or not
+        bool entryIsDir = false;
         struct stat statbuf;
-        if (stat(fullPath, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) {
+#ifdef _DIRENT_HAVE_D_TYPE
+        entryIsDir = (entry->d_type == DT_DIR);
+        // On some filesystems d_type is not set, then use stat to check the type
+        if (entry->d_type == DT_UNKNOWN) {
+            if (stat(fullPath, &statbuf) == 0) {
+                entryIsDir = S_ISDIR(statbuf.st_mode);
+            }
+        }
+#else
+        // On some systems d_type is note present, in which case stats is used
+        if (stat(fullPath, &statbuf) == 0) {
+            entryIsDir = S_ISDIR(statbuf.st_mode);
+        }
+#endif
+
+        if (entryIsDir) {
             // Recursive delete for subdirectory
             if (removeDirectoryRecursively(fullPath, NULL) != 0) {
                 status = -1;
@@ -387,6 +459,7 @@ int removeDirectoryRecursively(const char* rootDirPath, const char *expectedDirN
             // Delete file
             if (unlink(fullPath) != 0) {
                 perror("Could not delete file");
+                fprintf(stderr, "Could not delete '%s'\n", fullPath);
                 status = -1;
                 break;
             }
@@ -398,6 +471,7 @@ int removeDirectoryRecursively(const char* rootDirPath, const char *expectedDirN
     // Remove the directory itself
     if (status == 0 && rmdir(rootDirPath) != 0) {
         perror("Could not remove directory");
+        fprintf(stderr, "Could not remove '%s'\n", rootDirPath);
         status = -1;
     }
 #endif

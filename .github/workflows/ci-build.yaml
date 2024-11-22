@@ -1,12 +1,16 @@
 ---
 name: ghactions-ci-build
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   cmake-mingw:
     timeout-minutes: 5
     runs-on: windows-2019
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -28,7 +32,11 @@ jobs:
         working-directory: fmi4c-build
         shell: cmd
         run: ctest -C Release --output-on-failure --parallel 4
-
+        
+      - name: PythonTest
+        working-directory: fmi4c-build/test
+        run: python pytest.py
+        
   cmake-msvc2019:
     timeout-minutes: 5
     runs-on: windows-2019
@@ -54,11 +62,45 @@ jobs:
         working-directory: fmi4c-build
         shell: cmd
         run: ctest -C Release --output-on-failure --parallel 4
-
+        
   cmake-ubuntu:
     timeout-minutes: 5
     runs-on: ubuntu-20.04
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Create build dir
+        shell: bash
+        run: mkdir fmi4c-build
+
+      - name: Configure
+        working-directory: fmi4c-build
+        shell: bash
+        run: cmake -D CMAKE_CXX_FLAGS="-fsanitize=address" -D CMAKE_C_FLAGS="-fsanitize=address" -DFMI4C_BUILD_TEST=ON -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build
+        working-directory: fmi4c-build
+        shell: bash
+        run: cmake --build . --config Release --parallel 4
+
+      - name: Test
+        working-directory: fmi4c-build
+        shell: bash
+        run: ctest --output-on-failure --parallel 4
+        
+  cmake-ubuntu-python:
+    timeout-minutes: 5
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -75,8 +117,7 @@ jobs:
         working-directory: fmi4c-build
         shell: bash
         run: cmake --build . --config Release --parallel 4
-
+                  
       - name: Test
-        working-directory: fmi4c-build
-        shell: bash
-        run: ctest --output-on-failure --parallel 4
+        working-directory: fmi4c-build/test
+        run: python pytest.py
