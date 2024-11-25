@@ -536,7 +536,7 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
             unit.displayUnits = NULL;
             parseStringAttributeEzXmlAndRememberPointer(unitElement, "name", &unit.name, fmu);
             unit.numberOfDisplayUnits = 0;
-            for(ezxml_t unitSubElement = unitElement->child; unitSubElement; unitSubElement = unitSubElement->next) {
+            for(ezxml_t unitSubElement = unitElement->child; unitSubElement; unitSubElement = unitSubElement->ordered) {
                 if(!strcmp(unitSubElement->name, "BaseUnit")) {
                     unit.baseUnit = mallocAndRememberPointer(fmu, sizeof(fmi2BaseUnitHandle));
                     unit.baseUnit->kg = 0;
@@ -568,15 +568,15 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                 unit.displayUnits = mallocAndRememberPointer(fmu, unit.numberOfDisplayUnits*sizeof(fmi2DisplayUnitHandle));
             }
             int j=0;
-            for(ezxml_t unitSubElement = unitElement->child; unitSubElement; unitSubElement = unitSubElement->next) {
+            for(ezxml_t unitSubElement = unitElement->child; unitSubElement; unitSubElement = unitSubElement->ordered) {
                 if(!strcmp(unitSubElement->name, "DisplayUnit")) {
                     unit.displayUnits[j].factor = 1;
                     unit.displayUnits[j].offset = 0;
                     parseStringAttributeEzXmlAndRememberPointer(unitSubElement,  "name",      &unit.displayUnits[j].name, fmu);
                     parseFloat64AttributeEzXml(unitSubElement, "factor",    &unit.displayUnits[j].factor);
                     parseFloat64AttributeEzXml(unitSubElement, "offset",    &unit.displayUnits[j].offset);
+                    ++j;
                 }
-                ++j;
             }
             fmu->fmi2.units[i] = unit;
             ++i;
@@ -601,6 +601,11 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
             var.quantity = NULL;
             var.unit = NULL;
             var.displayUnit = NULL;
+            var.relativeQuantity = false;
+            var.min = -DBL_MAX;
+            var.max = DBL_MAX;
+            var.nominal = 1;
+            var.unbounded = false;
             var.derivative = 0;
 
             parseStringAttributeEzXmlAndRememberPointer(varElement, "name", &var.name, fmu);
@@ -721,6 +726,9 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                 if(parseInt32AttributeEzXml(integerElement, "start", &var.startInteger)) {
                     var.hasStartValue = true;
                 }
+                parseStringAttributeEzXmlAndRememberPointer(integerElement, "quantity", &var.quantity, fmu);
+                parseFloat64AttributeEzXml(integerElement, "min", &var.min);
+                parseFloat64AttributeEzXml(integerElement, "max", &var.max);
             }
 
             ezxml_t booleanElement = ezxml_child(varElement, "Boolean");
@@ -750,6 +758,7 @@ bool parseModelDescriptionFmi2(fmiHandle *fmu)
                 if(parseInt32AttributeEzXml(enumerationElement, "start", &var.startEnumeration)) {
                     var.hasStartValue = true;
                 }
+                parseStringAttributeEzXmlAndRememberPointer(enumerationElement, "quantity", &var.quantity, fmu);
             }
 
             if(fmu->fmi2.numberOfVariables >= fmu->fmi2.variablesSize) {
@@ -2697,7 +2706,7 @@ return 0;
 
 int fmi2_getNumberOfDisplayUnits(fmi2UnitHandle *unit)
 {
-return unit->numberOfDisplayUnits;
+    return unit->numberOfDisplayUnits;
 }
 
 void fmi2_getDisplayUnitByIndex(fmi2UnitHandle *unit, int id, const char **name, double *factor, double *offset)
@@ -3452,15 +3461,6 @@ const char* fmi2_getModelDescription(fmiHandle *fmu)
     return fmu->fmi2.description;
 }
 
-const char* fmi2_getModelIdentifier(fmiHandle *fmu)
-{
-    TRACEFUNC
-    if (fmu->fmi2.supportsCoSimulation)
-        return fmu->fmi2.cs.modelIdentifier;
-    else
-        return fmu->fmi2.me.modelIdentifier;
-}
-
 const char* fmi2_getCopyright(fmiHandle *fmu)
 {
     TRACEFUNC
@@ -3536,7 +3536,7 @@ fmi2Real fmi2_getVariableNominal(fmi2VariableHandle *var)
 bool fmi2_getVariableUnbounded(fmi2VariableHandle *var)
 {
     TRACEFUNC
-        return var->unbounded;
+    return var->unbounded;
 }
 
 bool fmi2_getVariableHasStartValue(fmi2VariableHandle *var)
